@@ -23,6 +23,7 @@ if (isset($_POST['login'])) {
     $res = $conn->query("SELECT * FROM usuario WHERE correo='$u' AND password='$p'");
     if ($res && $res->num_rows > 0) {
         $row = $res->fetch_assoc();
+        $_SESSION['id_usuario'] = $row['id_usuario'];
         $_SESSION['usuario'] = $row['nombre'];
         $_SESSION['rol'] = $row['id_rol'];
         header("Location: index.php");
@@ -43,6 +44,51 @@ if (isset($_POST['guardar_libro']) && $_SESSION['rol'] == '1') {
     $t = $_POST['titulo']; $a = $_POST['isbn']; $c = $_POST['cat'];
     $conn->query("INSERT INTO libro (titulo, isbn, id_categoria, stock) VALUES ('$t', '$a', '$c', 0)");
 }
+// --- LÓGICA DE LIBROS (AMPLIADA) ---
+
+// ELIMINAR LIBRO
+if (isset($_GET['eliminar_id']) && $_SESSION['rol'] == '1') {
+    $id = $_GET['eliminar_id'];
+    $conn->query("DELETE FROM libro WHERE id_libro = $id");
+    header("Location: index.php?mensaje=Libro eliminado");
+    exit();
+}
+
+// ACTUALIZAR LIBRO (Se activa al enviar el formulario de edición)
+if (isset($_POST['actualizar_libro']) && $_SESSION['rol'] == '1') {
+    $id = $_POST['id_libro'];
+    $t = $_POST['titulo']; 
+    $i = $_POST['isbn']; 
+    $s = $_POST['stock'];
+    $conn->query("UPDATE libro SET titulo='$t', isbn='$i', stock='$s' WHERE id_libro = $id");
+    header("Location: index.php?mensaje=Libro actualizado");
+    exit();
+}
+// --- 3. LÓGICA DE HISTORIA (Solo Admin) ---
+if (isset($_POST['actualizar_historia']) && $_SESSION['rol'] == '1') {
+    // Escapamos el texto para evitar errores con comillas
+    $nuevo_texto = mysqli_real_escape_string($conn, $_POST['nuevo_contenido']);
+    $conn->query("UPDATE informacion SET contenido = '$nuevo_texto' WHERE clave = 'historia'");
+    $mensaje = "Historia actualizada correctamente.";
+}
+// --- 4. LÓGICA DE PRÉSTAMOS ---
+if (isset($_GET['pedir_id']) && isset($_SESSION['id_usuario'])) {
+    $id_libro = $_GET['pedir_id'];
+    $id_user = $_SESSION['id_usuario'];
+
+    // Verificamos stock disponible antes de prestar
+    $resLibro = $conn->query("SELECT stock FROM libro WHERE id_libro = $id_libro");
+    $libro = $resLibro->fetch_assoc();
+
+    if ($libro['stock'] > 0) {
+        $conn->query("INSERT INTO prestamo (id_usuario, id_libro, fecha_prestamo, estado) 
+        VALUES ($id_user, $id_libro, NOW(), 'Pendiente')");
+        $conn->query("UPDATE libro SET stock = stock - 1 WHERE id_libro = $id_libro");
+        
+        header("Location: index.php?mensaje=Libro pedido correctamente");
+        exit();
+    }
+}
 ?>
 
 <!DOCTYPE html>
@@ -56,6 +102,7 @@ if (isset($_POST['guardar_libro']) && $_SESSION['rol'] == '1') {
 
 <?php if (!isset($_SESSION['usuario'])): ?>
     <div class="auth-container">
+        <h2 style="text-align:center; color:black;">Bienvenido a la Biblioteca Inmaculada Concepción</h2>
         <h2 style="text-align:center; color:#004a99;">Acceso A Biblioteca</h2>
         <p style="color:red;"><?php echo $mensaje; ?></p>
 
@@ -125,9 +172,10 @@ if (isset($_POST['guardar_libro']) && $_SESSION['rol'] == '1') {
                         <td><?php echo $user['correo']; ?></td>
                         <td><?php echo $user['id_rol']; ?></td>
                         <td>
-                            <a href="?eliminar_u=<?php echo $user['id_usuario']; ?>" 
-                               onclick="return confirm('¿Eliminar usuario?')" 
-                               style="color:red; text-decoration:none;">❌ Eliminar</a>
+                      <a href="?seccion=usuarios&editar_u=<?php echo $user['id_usuario']; ?>" style="text-decoration:none;">✏️ Actualizar</a> | 
+        <a href="?eliminar_u=<?php echo $user['id_usuario']; ?>" 
+           style="color:red; text-decoration:none;" 
+           onclick="return confirm('¿Eliminar usuario?')">❌ Eliminar</a>
                         </td>
                     </tr>
                     <?php endwhile; ?>
@@ -156,6 +204,39 @@ if (isset($_POST['guardar_libro']) && $_SESSION['rol'] == '1') {
                     </form>
                 </div>
             <?php endif; ?>
+            <?php 
+if (isset($_GET['editar_id']) && $_SESSION['rol'] == '1'): 
+    $id_edit = $_GET['editar_id'];
+    $resEdit = $conn->query("SELECT * FROM libro WHERE id_libro = $id_edit");
+    $libroEdit = $resEdit->fetch_assoc();
+?>
+    <div class="admin-box" style="border: 2px solid #004a99; margin-bottom: 20px; background-color: #f9f9f9;">
+        <h3 style="color: #004a99;">✏️ Editando: <?php echo $libroEdit['titulo']; ?></h3>
+        <form method="POST" style="display:flex; gap:10px; flex-wrap: wrap; align-items: center;">
+            <input type="hidden" name="id_libro" value="<?php echo $libroEdit['id_libro']; ?>">
+            
+            <div style="flex: 1;">
+                <label style="font-size: 0.8em; display: block;">Título:</label>
+                <input type="text" name="titulo" value="<?php echo $libroEdit['titulo']; ?>" required style="width: 100%;">
+            </div>
+            
+            <div style="flex: 1;">
+                <label style="font-size: 0.8em; display: block;">ISBN:</label>
+                <input type="text" name="isbn" value="<?php echo $libroEdit['isbn']; ?>" required style="width: 100%;">
+            </div>
+            
+            <div style="width: 80px;">
+                <label style="font-size: 0.8em; display: block;">Stock:</label>
+                <input type="number" name="stock" value="<?php echo $libroEdit['stock']; ?>" required style="width: 100%;">
+            </div>
+            
+            <div style="align-self: flex-end; display: flex; gap: 5px;">
+                <button type="submit" name="actualizar_libro" class="btn-green">Actualizar</button>
+                <a href="index.php" style="background: #ccc; color: black; padding: 10px; text-decoration: none; border-radius: 4px; font-size: 0.9em;">Cancelar</a>
+            </div>
+        </form>
+    </div>
+<?php endif; ?>
 
             <h3>Inventario de Libros</h3>
             <table>
@@ -166,6 +247,7 @@ if (isset($_POST['guardar_libro']) && $_SESSION['rol'] == '1') {
                         <th>Categoría</th>
                         <th>Stock</th>
                         <th>Estado</th>
+                        <th style="text-align:center;">Acción</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -178,7 +260,7 @@ if (isset($_POST['guardar_libro']) && $_SESSION['rol'] == '1') {
                     <tr>
                         <td><?php echo $row['titulo']; ?></td>
                         <td><?php echo $row['isbn']; ?></td>
-                        <td><?php echo $row['id_categoria'] ?? 'N/A'; ?></td>
+                        <td><?php echo $row['id_categoria'] ?? '1'; ?></td>
                         <td><?php echo $row['stock']; ?></td>
                         <td>
                             <?php if ($row['stock'] > 0): ?>
@@ -187,13 +269,24 @@ if (isset($_POST['guardar_libro']) && $_SESSION['rol'] == '1') {
                                 <span class="status prestado">AGOTADO</span>
                             <?php endif; ?>
                         </td>
-                    </tr>
-                    <?php endwhile; ?>
+                    <td>
+                <?php if ($_SESSION['rol'] == '1'): ?>
+                <a href="?editar_id=<?php echo $row['id_libro']; ?>" style="text-decoration:none;">✏️ Editar</a> | 
+                <a href="?eliminar_id=<?php echo $row['id_libro']; ?>" 
+                   style="color:red; text-decoration:none;" 
+                   onclick="return confirm('¿Seguro que deseas eliminar este libro?')">🗑️ Eliminar</a>
+            <?php elseif (($_SESSION['rol'] == '4' || $_SESSION['rol'] == '5') && $row['stock'] > 0): ?>
+                <a href="?pedir_id=<?php echo $row['id_libro']; ?>" class="btn-pedido">📖 Pedir</a>
+            <?php endif; ?>
+                    </td>
+              </tr>
+                    <?php endwhile; ?> 
                 </tbody>
             </table>
         <?php endif; ?>
     </div>
 <?php endif; ?>
+
 
 </body>
 </html>

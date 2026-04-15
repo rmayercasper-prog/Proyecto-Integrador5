@@ -109,3 +109,20 @@ input, select, button {
     border-radius: 8px; 
     margin-bottom: 20px;
 }
+
+.btn-pedido {
+    background-color: #004a99; /* Azul institucional */
+    color: white !important;
+    padding: 8px 15px;
+    text-decoration: none;
+    border-radius: 5px;
+    font-weight: bold;
+    display: inline-block;
+    transition: background 0.3s;
+    font-size: 0.9em;
+}
+
+.btn-pedido:hover {
+    background-color: #003366; /* Un azul más oscuro al pasar el mouse */
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+}
