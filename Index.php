@@ -80,12 +80,23 @@ if (isset($_GET['pedir_id']) && isset($_SESSION['id_usuario'])) {
     $resLibro = $conn->query("SELECT stock FROM libro WHERE id_libro = $id_libro");
     $libro = $resLibro->fetch_assoc();
 
+  // Definimos una fecha de devolución (ejemplo: 15 días después de hoy)
+    $fecha_esperada = date('Y-m-d', strtotime('+15 days'));
+    // Definimos un id_admin por defecto (puedes ajustarlo según tu lógica)
+    $id_admin_defecto = 1; 
+
     if ($libro['stock'] > 0) {
-        $conn->query("INSERT INTO prestamo (id_usuario, id_libro, fecha_prestamo, estado) 
-        VALUES ($id_user, $id_libro, NOW(), 'Pendiente')");
-        $conn->query("UPDATE libro SET stock = stock - 1 WHERE id_libro = $id_libro");
+        // INSERT ajustado a tus nuevos nombres de columna: fecha_salida y fecha_devolucion_esperada
+        $sql_prestamo = "INSERT INTO prestamo (id_usuario, id_libro, id_admin, fecha_salida, fecha_devolucion_esperada, estado) 
+                         VALUES ($id_user, $id_libro, Null, NOW(), '$fecha_esperada', 'activo')";
         
-        header("Location: index.php?mensaje=Libro pedido correctamente");
+        if ($conn->query($sql_prestamo)) {
+            // Restar stock
+            $conn->query("UPDATE libro SET stock = stock - 1 WHERE id_libro = $id_libro");
+            header("Location: index.php?mensaje=Libro pedido con éxito");
+        } else {
+            echo "Error en la base de datos: " . $conn->error;
+        }
         exit();
     }
 }
