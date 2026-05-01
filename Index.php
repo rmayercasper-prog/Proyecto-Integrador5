@@ -143,6 +143,32 @@ if (isset($_POST['guardar_cambios_usuario']) && $_SESSION['rol'] == '1') {
     header("Location: index.php?seccion=usuarios&mensaje=Usuario+actualizado");
     exit();
 }
+// --- 6. LÓGICA DE CATEGORÍAS (Solo Admin) ---
+
+// ELIMINAR CATEGORÍA
+if (isset($_GET['eliminar_cat']) && $_SESSION['rol'] == '1') {
+    $id_c = $_GET['eliminar_cat'];
+    $conn->query("DELETE FROM categoria WHERE id_categoria = $id_c");
+    header("Location: index.php?seccion=categorias&mensaje=Categoria+eliminada");
+    exit();
+}
+
+// AGREGAR CATEGORÍA
+if (isset($_POST['crear_categoria']) && $_SESSION['rol'] == '1') {
+    $nom_cat = $_POST['nombre_categoria'];
+    $conn->query("INSERT INTO categoria (nombre_categoria) VALUES ('$nom_cat')");
+    header("Location: index.php?seccion=categorias&mensaje=Categoria+creada");
+    exit();
+}
+
+// ACTUALIZAR CATEGORÍA
+if (isset($_POST['update_cat']) && $_SESSION['rol'] == '1') {
+    $id = $_POST['id_cat'];
+    $nom = $_POST['nombre_cat'];
+    $conn->query("UPDATE categoria SET nombre_categoria='$nom' WHERE id_categoria = $id");
+    header("Location: index.php?seccion=categorias&mensaje=Categoria+actualizada");
+    exit();
+}
 ?>
 
 <!DOCTYPE html>
@@ -194,12 +220,12 @@ if (isset($_POST['guardar_cambios_usuario']) && $_SESSION['rol'] == '1') {
     <div class="menu">
         <a href="index.php">📚 Libros</a>
         <?php if ($_SESSION['rol'] == 1): ?>
-            <a href="?seccion=usuarios" >👥 Gestionar Usuarios</a>
+            <a href="index.php?seccion=usuarios" >👥 Gestionar Usuarios</a>
         <?php endif; ?>
-        <a href="#">📂 Categorías</a>
-        <a href="#">🏛️ Historia</a>
-        <a href="#">📞 Contactos</a>
-        <a href="#">❓ Ayuda</a>
+        <a href="index.php?seccion=categorias">📂 Categorías</a>
+        <a href="index.php?seccion=historia">🏛️ Historia</a>
+        <a href="index.php?seccion=contactos">📞 Contactos</a>
+        <a href="index.php?seccion=ayuda">❓ Ayuda</a>
     </div>
 
     <div class="container">
@@ -226,6 +252,7 @@ if (isset($_POST['guardar_cambios_usuario']) && $_SESSION['rol'] == '1') {
         </form>
     </div>
 <?php endif; ?>
+
 <div class="admin-box" style="border: 2px solid #28a745; background: #f4fff4; margin-bottom: 20px; padding: 15px; border-radius: 8px;">
     <h3 style="color: #28a745; margin-top: 0;">➕ Registrar Nuevo Usuario</h3>
     <form method="POST" style="display:flex; gap:10px; flex-wrap: wrap; align-items: center;">
@@ -264,8 +291,8 @@ if (isset($_POST['guardar_cambios_usuario']) && $_SESSION['rol'] == '1') {
                         <td><?php echo $user['correo']; ?></td>
                         <td><?php echo $user['id_rol']; ?></td>
                         <td>
-                      <a href="?seccion=usuarios&editar_u=<?php echo $user['id_usuario']; ?>" style="text-decoration:none;">✏️ Actualizar</a> | 
-        <a href="?eliminar_u=<?php echo $user['id_usuario']; ?>" 
+                      <a href="index.php?seccion=usuarios&editar_u=<?php echo $user['id_usuario']; ?>" style="text-decoration:none;">✏️ Actualizar</a> | 
+        <a href="index.php?eliminar_u=<?php echo $user['id_usuario']; ?>" 
            style="color:red; text-decoration:none;" 
            onclick="return confirm('¿Eliminar usuario?')">❌ Eliminar</a>
                         </td>
@@ -274,6 +301,58 @@ if (isset($_POST['guardar_cambios_usuario']) && $_SESSION['rol'] == '1') {
                 </tbody>
             </table>
         
+         <!-- SECCIÓN: HISTORIA -->
+        <?php elseif (isset($_GET['seccion']) && $_GET['seccion'] == 'historia'): ?>
+            <div class="admin-box" style="background: white; padding: 25px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+                <h2 style="color:#004a99; text-align: center;">🏛️ Historia de la Biblioteca Inmaculada Concepción</h2>
+                <hr style="border: 1px solid #eee; margin: 20px 0;">
+                
+                <?php
+                    // Intentamos traer la info de la BD
+                    $resH = $conn->query("SELECT contenido FROM iinformacion WHERE clave = 'historia'");
+                    $historia = ($resH && $resH->num_rows > 0) ? $resH->fetch_assoc()['contenido'] : "Bienvenido a la Biblioteca Inmaculada Concepción. Actualmente estamos redactando nuestra cronología oficial para compartirla con toda la comunidad estudiantil.";
+                ?>
+
+                <div style="line-height: 1.8; font-size: 1.1em; color: #444; text-align: justify;">
+                    <?php echo nl2br($historia); ?>
+                </div>
+
+                <?php if ($_SESSION['rol'] == 1): ?>
+                    <div style="margin-top: 40px; padding: 20px; background: #f9f9f9; border-left: 5px solid #004a99;">
+                        <h4>✏️ Panel de Edición (Administrador)</h4>
+                        <form method="POST">
+                            <textarea name="nuevo_contenido" style="width:100%; height:150px; padding:10px; margin-bottom:10px; border: 1px solid #ccc; border-radius: 4px;"><?php echo $historia; ?></textarea>
+                            <button type="submit" name="actualizar_historia" class="btn-green">Guardar Cambios en la Historia</button>
+                        </form>
+                    </div>
+                <?php endif; ?>
+            </div>
+
+        <!-- SECCIÓN: CATEGORÍAS -->
+        <?php elseif (isset($_GET['seccion']) && $_GET['seccion'] == 'categorias' && $_SESSION['rol'] == 1): ?>
+            <h3>📂 Gestión de Categorías</h3>
+            <div class="admin-box" style="border: 2px solid #28a745;">
+                <form method="POST" style="display:flex; gap:10px;">
+                    <input type="text" name="nombre_categoria" placeholder="Nueva Categoría" required>
+                    <button type="submit" name="crear_categoria" class="btn-green">Guardar</button>
+                </form>
+            </div>
+            <table>
+                <thead><tr><th>ID</th><th>Nombre</th><th>Acción</th></tr></thead>
+                <tbody>
+                    <?php
+                    $resC = $conn->query("SELECT * FROM categoria");
+                    while($cat = $resC->fetch_assoc()): ?>
+                        <tr>
+                            <td><?php echo $cat['id_categoria']; ?></td>
+                            <td><?php echo $cat['nombre_categoria']; ?></td>
+                            <td><a href="?eliminar_cat=<?php echo $cat['id_categoria']; ?>" style="color:red;">❌ Eliminar</a></td>
+                        </tr>
+                    <?php endwhile; ?>
+                </tbody>
+            </table>
+
+        <!-- SECCIÓN POR DEFECTO: INVENTARIO DE LIBROS -->
         <?php else: ?>
             <div class="search-box">
                 <form method="GET">
@@ -333,6 +412,7 @@ if (isset($_GET['editar_id']) && $_SESSION['rol'] == '1'):
         </form>
     </div>
 <?php endif; ?>
+
 
             <h3>Inventario de Libros</h3>
             <table>
