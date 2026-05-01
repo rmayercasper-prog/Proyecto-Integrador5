@@ -100,6 +100,49 @@ if (isset($_GET['pedir_id']) && isset($_SESSION['id_usuario'])) {
         exit();
     }
 }
+// --- 5. LÓGICA DE GESTIÓN DE USUARIOS (NUEVO) ---
+
+// ELIMINAR USUARIO
+if (isset($_GET['eliminar_u']) && $_SESSION['rol'] == '1') {
+    $id_u = $_GET['eliminar_u'];
+    // Evitamos que el administrador se borre a sí mismo
+    if ($id_u != $_SESSION['id_usuario']) {
+        $conn->query("DELETE FROM usuario WHERE id_usuario = $id_u");
+        header("Location: index.php?seccion=usuarios&mensaje=Usuario+eliminado");
+    } else {
+        header("Location: index.php?seccion=usuarios&mensaje=No+puedes+eliminarte");
+    }
+    exit();
+}
+// ACCIÓN: CREAR USUARIO (Desde el panel administrativo)
+if (isset($_POST['crear_usuario_admin']) && $_SESSION['rol'] == '1') {
+    $nom = $_POST['nombre_admin'];
+    $cor = $_POST['correo_admin'];
+    $pass = $_POST['pass_admin'];
+    $rol = $_POST['rol_admin'];
+    
+    // Insertamos el nuevo usuario
+    $sql_ins = "INSERT INTO usuario (nombre, correo, password, id_rol) VALUES ('$nom', '$cor', '$pass', '$rol')";
+    
+    if ($conn->query($sql_ins)) {
+        header("Location: index.php?seccion=usuarios&mensaje=Usuario+creado+exitosamente");
+    } else {
+        echo "Error al crear: " . $conn->error;
+    }
+    exit();
+}
+
+// ACTUALIZAR USUARIO (Procesar formulario)
+if (isset($_POST['guardar_cambios_usuario']) && $_SESSION['rol'] == '1') {
+    $id = $_POST['id_usuario'];
+    $nom = $_POST['nombre'];
+    $cor = $_POST['correo'];
+    $rol = $_POST['id_rol'];
+    
+    $conn->query("UPDATE usuario SET nombre='$nom', correo='$cor', id_rol='$rol' WHERE id_usuario = $id");
+    header("Location: index.php?seccion=usuarios&mensaje=Usuario+actualizado");
+    exit();
+}
 ?>
 
 <!DOCTYPE html>
@@ -162,6 +205,44 @@ if (isset($_GET['pedir_id']) && isset($_SESSION['id_usuario'])) {
     <div class="container">
         <?php if (isset($_GET['seccion']) && $_GET['seccion'] == 'usuarios' && $_SESSION['rol'] == 1): ?>
             <h3>Gestión de Usuarios Registrados</h3>
+            <?php if (isset($_GET['editar_u']) && $_SESSION['rol'] == 1): 
+    $id_edit_u = $_GET['editar_u'];
+    $resEditU = $conn->query("SELECT * FROM usuario WHERE id_usuario = $id_edit_u");
+    $uData = $resEditU->fetch_assoc();
+?>
+    <div class="admin-box" style="border: 2px solid #ffc107; background: #fffde7; margin-bottom: 20px;">
+        <h3>✏️ Editando Usuario: <?php echo $uData['nombre']; ?></h3>
+        <form method="POST" style="display:flex; gap:10px; flex-wrap: wrap;">
+            <input type="hidden" name="id_usuario" value="<?php echo $uData['id_usuario']; ?>">
+            <input type="text" name="nombre" value="<?php echo $uData['nombre']; ?>" required>
+            <input type="email" name="correo" value="<?php echo $uData['correo']; ?>" required>
+            <select name="id_rol">
+                <option value="1" <?php if($uData['id_rol'] == 1) echo 'selected'; ?>>Administrador</option>
+                <option value="4" <?php if($uData['id_rol'] == 4) echo 'selected'; ?>>Estudiante</option>
+                <option value="5" <?php if($uData['id_rol'] == 5) echo 'selected'; ?>>Profesor</option>
+            </select>
+            <button type="submit" name="guardar_cambios_usuario" class="btn-green">Guardar Cambios</button>
+            <a href="?seccion=usuarios" style="padding: 10px; color: grey;">Cancelar</a>
+        </form>
+    </div>
+<?php endif; ?>
+<div class="admin-box" style="border: 2px solid #28a745; background: #f4fff4; margin-bottom: 20px; padding: 15px; border-radius: 8px;">
+    <h3 style="color: #28a745; margin-top: 0;">➕ Registrar Nuevo Usuario</h3>
+    <form method="POST" style="display:flex; gap:10px; flex-wrap: wrap; align-items: center;">
+        <input type="text" name="nombre_admin" placeholder="Nombre completo" required style="padding: 8px;">
+        <input type="email" name="correo_admin" placeholder="Correo electrónico" required style="padding: 8px;">
+        <input type="password" name="pass_admin" placeholder="Contraseña" required style="padding: 8px;">
+        
+        <select name="rol_admin" style="padding: 8px;">
+            <option value="4">Estudiante</option>
+            <option value="5">Profesor</option>
+            <option value="1">Administrador</option>
+        </select>
+        
+        <button type="submit" name="crear_usuario_admin" class="btn-green" style="padding: 10px 20px;">Crear Usuario</button>
+    </form>
+</div>
+
             <table>
                 <thead>
                     <tr>
@@ -205,13 +286,17 @@ if (isset($_GET['pedir_id']) && isset($_SESSION['id_usuario'])) {
                 <div class="admin-box">
                     <h3>➕ Registrar Nuevo Libro</h3>
                     <form method="POST" style="display:flex; gap:10px;">
+                        <input type="hidden" name="id_libro" value="<?php echo $libroEdit['id_libro'] ?? ''; ?>">
                         <input type="text" name="titulo" placeholder="Título" required>
                         <input type="text" name="isbn" placeholder="ISBN" required>
+                        <input type="number" name="stock" placeholder="Stock" required>
                         <select name="cat">
                             <option value="1">Literatura</option>
                             <option value="2">Ciencias</option>
                         </select>
                         <button type="submit" name="guardar_libro" class="btn-green">Guardar</button>
+                        <button type="submit" name="actualizar_libro" class="btn-green">Actualizar</button>
+                        <button type="submit" name="editar_libro" class="btn-green">Editar</button>
                     </form>
                 </div>
             <?php endif; ?>
